@@ -1,0 +1,190 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+  // User model for authentication and user management
+model User {
+  id                    String    @id @default(cuid())
+  name                  String?
+  email                 String    @unique
+  emailVerified         DateTime?
+  image                 String?
+  password              String?   // Hashed password for email/password auth
+  resetToken            String?   // Token for password reset
+  resetTokenExpires     DateTime? // Expiration time for reset token
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  
+  // Subscription fields
+  stripeCustomerId      String?
+  subscriptionTier      String    @default("FREE") // FREE, BASIC, PREMIUM, PROFESSIONAL
+  subscriptionStatus    String?   // active, past_due, canceled, etc.
+  subscriptionPeriodEnd DateTime?
+  subscriptionId        String?
+  
+  // Email notification preferences
+  emailNotifications    Boolean   @default(true)
+  weeklyDigest          Boolean   @default(true)
+  priceDropAlerts       Boolean   @default(true)
+
+  // Relationships
+  products             Product[]
+  alerts               Alert[]
+  accounts             Account[]
+  sessions             Session[]
+  productSettings      UserProductSettings[]
+  
+  // Indexes
+  @@index([email])
+  @@index([subscriptionStatus])
+  @@index([subscriptionTier])
+}
+
+// Account model for OAuth providers
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+// Session model for managing user sessions
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Product model for storing product information
+model Product {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  imageUrl    String?
+  url         String
+  retailer    String
+  productId   String   // Retailer-specific product ID
+  currentPrice Float
+  currency    String   @default("USD")
+  lastCheckedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  userId      String
+
+  // Relationships
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  priceHistory PriceHistory[]
+  alerts       Alert[]
+  settings     UserProductSettings[]
+
+  @@unique([retailer, productId])
+  @@index([userId])
+  @@index([retailer])
+  @@index([lastCheckedAt])
+  @@index([userId, createdAt])
+  @@index([url])  // Added missing url index
+}
+
+// PriceHistory model for tracking price changes over time
+model PriceHistory {
+  id        String   @id @default(cuid())
+  price     Float
+  currency  String   @default("USD")
+  timestamp DateTime @default(now())
+  productId String
+
+  // Relationships
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([timestamp])
+  @@index([productId, timestamp]) // Composite index for time-series queries by product
+}
+
+// Alert model for user-defined price alerts
+model Alert {
+  id          String   @id @default(cuid())
+  targetPrice Float
+  isTriggered Boolean  @default(false)
+  status      String   @default("ACTIVE") // ACTIVE, TRIGGERED, PAUSED
+  triggeredAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  productId   String
+  userId      String
+
+  // Relationships
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([userId])
+  @@index([userId, status])
+  @@index([triggeredAt])
+  @@index([userId, createdAt])
+  @@index([isTriggered])  // Added missing isTriggered index
+}
+
+// UserProductSettings model for storing dropshipper-specific settings
+model UserProductSettings {
+  id               String   @id @default(cuid())
+  userId           String
+  productId        String
+  markupPercentage Float    @default(30.0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relationships
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@index([productId])
+}
+
+// SubscriptionTier model for defining subscription tiers and their features
+model SubscriptionTier {
+  id                  String  @id @default(cuid())
+  name                String  @unique // FREE, BASIC, PREMIUM, PROFESSIONAL
+  displayName         String  // User-friendly display name
+  description         String  // Short description of the tier
+  monthlyPrice        Float   // Price in USD for monthly billing
+  yearlyPrice         Float   // Price in USD for yearly billing (discounted)
+  stripePriceIdMonthly String? // Stripe price ID for monthly billing
+  stripePriceIdYearly  String? // Stripe price ID for yearly billing
+  maxProducts         Int     // Maximum number of products allowed
+  maxAlertsPerProduct Int     // Maximum alerts per product
+  priceHistoryDays    Int     // Days of price history to keep
+  features            String  // JSON string of features enabled for this tier
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
