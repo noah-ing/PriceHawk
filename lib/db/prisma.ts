@@ -39,10 +39,15 @@ const prismaClientSingleton = () => {
     },
   });
   
-  // Force connection test during initialization 
-  client.$connect()
-    .then(() => console.log('[Prisma] Initial connection successful'))
-    .catch((error: unknown) => console.error('[Prisma] Initial connection failed:', error));
+  // Only test connection when not in build/CI environment
+  if (process.env.NEXT_PHASE !== 'phase-production-build' && process.env.CI !== 'true') {
+    // In runtime environments, test the connection
+    client.$connect()
+      .then(() => console.log('[Prisma] Initial connection successful'))
+      .catch((error: unknown) => console.error('[Prisma] Initial connection failed:', error));
+  } else {
+    console.log('[Prisma] Skipping database connection test during build phase');
+  }
 
   // Add middleware for logging and diagnostics
   client.$use(async (params: any, next: any) => {
