@@ -2,7 +2,7 @@ name: Deploy PriceHawk
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   workflow_dispatch:
 
 jobs:
@@ -60,7 +60,7 @@ jobs:
           local-dir: ./.next/
           server-dir: /public_html/
       
-      - name: Copy server file
+      - name: Copy server files
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
           server: ${{ secrets.SITEGROUND_FTP_SERVER }}
@@ -69,16 +69,12 @@ jobs:
           local-dir: ./
           server-dir: /
           exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
-            **/.next/**
-          include: |
-            server.js
-            package.json
-            package-lock.json
-            .env
-            lib/websockets.js
+            **/*
+            !server.js
+            !package.json
+            !package-lock.json
+            !.env
+            !lib/websockets.js
       
       - name: Install dependencies and restart on server
         uses: appleboy/ssh-action@master
