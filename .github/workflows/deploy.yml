@@ -42,8 +42,34 @@ jobs:
           echo "ENABLE_SUBSCRIPTIONS=true" >> .env
           echo "ENABLE_EMAIL_NOTIFICATIONS=true" >> .env
       
-      - name: Run database migrations
-        run: npx prisma migrate deploy
+      # Add the SSH key to GitHub Actions runner
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo '${{ secrets.SITEGROUND_SSH_PRIVATE_KEY }}' > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          echo "ssh.pricehawk.app ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIE6D4TAKK3nOP+izh2ZDzoWy5tE4KglnCFpVBg7jQm4G" >> ~/.ssh/known_hosts
+      
+      - name: Run database migrations via SSH tunnel
+        run: |
+          # Create SSH tunnel to the database
+          ssh -i ~/.ssh/id_ed25519 -p 18765 u2854-mdygfp1biij7@ssh.pricehawk.app -L 5433:pg.siteground.biz:5432 -N -f -o "StrictHostKeyChecking=no"
+          TUNNEL_PID=$!
+          
+          # Give the tunnel time to establish
+          sleep 5
+          
+          # Get DATABASE_URL from environment and modify it to use the tunnel
+          ORIGINAL_URL=${{ secrets.DATABASE_URL }}
+          export DATABASE_URL="${ORIGINAL_URL/pg.siteground.biz:5432/localhost:5433}"
+          
+          # Run migrations
+          npx prisma migrate deploy
+          
+          # Kill the SSH tunnel
+          if [ ! -z "$TUNNEL_PID" ]; then
+            kill $TUNNEL_PID
+          fi
       
       - name: Build application
         run: npm run build
