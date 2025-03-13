@@ -108,19 +108,30 @@ PriceHawk is production ready with a newly added dropshipper-focused dashboard t
    - Create alert priority system with better categorization
 
 ### Phase 1: Production Deployment
-1. Run database validation script to verify schema integrity:
+1. ✅ Configure GitHub repository and CI/CD pipeline:
+   - Initialized Git repository and pushed code to GitHub
+   - Set up all required GitHub Secrets for deployment
+   - Configured GitHub Actions workflow file to deploy on push to master branch
+
+2. Run database validation script to verify schema integrity:
    ```bash
    npm run db:verify-indexes
    ```
-2. Create pre-deployment backup:
+3. Create pre-deployment backup:
    ```bash
    npm run pre-deploy
    ```
-3. Run comprehensive production readiness check:
+4. Run comprehensive production readiness check:
    ```bash
    npm run pre-deploy-check
    ```
-4. Deploy to pricehawk.app using GitHub Actions workflow or manual deployment
+5. Deploy to pricehawk.app using GitHub Actions workflow:
+   ```bash
+   # Simply push changes to the master branch
+   git add .
+   git commit -m "Your changes"
+   git push
+   ```
 
 ### Phase 2: Post-Deployment Verification
 1. Check health endpoint to verify application status
