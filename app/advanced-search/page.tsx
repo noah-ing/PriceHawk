@@ -7,6 +7,9 @@
 
 "use client";
 
+// Skip static generation - force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { UrlInputForm } from '@/components/url-input-form';
