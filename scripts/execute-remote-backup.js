@@ -78,17 +78,19 @@ const main = async () => {
     
     console.log(`Uploading backup script to ${sshUser}@${sshHost}:${remoteScriptPath}`);
     
-    // Upload remote-backup.sh to the server
-    await execAsync(`scp ${localScriptPath} ${sshUser}@${sshHost}:${remoteScriptPath}`);
+    // Upload remote-backup.sh to the server using non-interactive SSH
+    console.log(`Uploading backup script to ${sshUser}@${sshHost}:${remoteScriptPath}`);
+    await execAsync(`scp -o BatchMode=yes -o StrictHostKeyChecking=accept-new ${localScriptPath} ${sshUser}@${sshHost}:${remoteScriptPath}`);
     
     // Make the script executable
-    await execAsync(`ssh ${sshUser}@${sshHost} "chmod +x ${remoteScriptPath}"`);
+    console.log('Making script executable...');
+    await execAsync(`ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new ${sshUser}@${sshHost} "chmod +x ${remoteScriptPath}"`);
     
     console.log(`Executing remote backup with version: ${version}`);
     
     // Execute the backup script on the server with environment variables
     const { stdout, stderr } = await execAsync(
-      `ssh ${sshUser}@${sshHost} "DB_USER='${dbUser}' DB_NAME='${dbName}' ${remoteScriptPath} ${version}"`
+      `ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new ${sshUser}@${sshHost} "DB_USER='${dbUser}' DB_NAME='${dbName}' ${remoteScriptPath} ${version}"`
     );
     
     // Display output from remote execution
