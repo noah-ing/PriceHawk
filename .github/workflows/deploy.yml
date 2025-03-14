@@ -73,7 +73,7 @@ jobs:
           username: ${{ secrets.SITEGROUND_FTP_USERNAME }}
           password: ${{ secrets.SITEGROUND_FTP_PASSWORD }}
           local-dir: ./
-          server-dir: /
+          server-dir: ./
           exclude: |
             **/*
             !server.js
