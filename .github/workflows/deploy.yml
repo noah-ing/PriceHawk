@@ -77,13 +77,29 @@ jobs:
           local-dir: ./public/
           server-dir: /
       
+      # Create deployment marker for cron job to detect
+      - name: Create deployment marker directory and file
+        run: |
+          mkdir -p deployment-marker
+          echo "Deployment timestamp: $(date)" > deployment-marker/.deployment-marker
+
+      # Upload deployment marker to trigger the cron job restart
+      - name: Upload deployment marker
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        with:
+          server: ${{ secrets.SITEGROUND_FTP_SERVER }}
+          username: ${{ secrets.SITEGROUND_FTP_USERNAME }}
+          password: ${{ secrets.SITEGROUND_FTP_PASSWORD }}
+          local-dir: ./deployment-marker/
+          server-dir: /public_html/
+
       - name: Deployment completed
         run: |
           echo "Next.js build deployed successfully via FTP"
-          echo "IMPORTANT: To restart the application, visit the following URL in your browser:"
-          echo "https://pricehawk.app/restart-app.php?token=PrH_7f2c91d83b4e5a6f"
-          echo ""
-          echo "This will execute these commands on the server:"
+          echo "Deployment marker uploaded to trigger cron job restart"
+          echo "The cron job will automatically:"
           echo "- cd ~/public_html"
           echo "- npm install --production"
           echo "- pm2 restart pricehawk (or start if not running)"
+          echo ""
+          echo "Your application will be restarted within the next few minutes."

@@ -2,40 +2,52 @@
 
 ## Overview
 
-Since direct SSH access to the SiteGround server is not possible from GitHub Actions or local machines due to firewall restrictions, we implemented a secure PHP-based restart solution.
+Since direct SSH access to the SiteGround server is not possible from GitHub Actions, and PHP execution of shell commands is restricted, we've implemented an automated cron-based restart system.
 
 ## How It Works
 
-1. A PHP script (`restart-app.php`) is deployed to the server's public directory
-2. The script is protected by a secure token to prevent unauthorized access
-3. When accessed with the correct token, it executes server-side commands to restart the Node.js application
-4. The GitHub Actions workflow deploys both the Next.js application and this restart script
+1. A cron job runs on the SiteGround server every few minutes
+2. The cron job checks for a `.deployment-marker` file in the `/public_html` directory
+3. When the marker is found, it:
+   - Removes the marker file (to prevent repeated restarts)
+   - Installs production dependencies
+   - Restarts the Node.js application with PM2
+4. The GitHub Actions workflow deploys both the Next.js application and creates this marker file
 
 ## Usage
 
-After each deployment, you need to visit the following URL to restart the application:
+After the GitHub Actions workflow completes:
+1. The deployment marker file is automatically created in the `/public_html` directory
+2. Within a few minutes, the cron job detects the marker and restarts the application
+3. No manual intervention is required
+
+## Cron Job Setup
+
+The following cron job should be configured on SiteGround:
 
 ```
-https://pricehawk.app/restart-app.php?token=PrH_7f2c91d83b4e5a6f
+*/5 * * * * cd ~/public_html && [ -f .deployment-marker ] && (rm .deployment-marker && npm install --production && pm2 restart pricehawk || pm2 start npm --name pricehawk -- start)
 ```
 
-This will:
-1. Change to the public_html directory
-2. Install production dependencies (npm install --production)
-3. Restart the PM2 process (or start it if not running)
+This runs every 5 minutes and:
+1. Changes to the public_html directory
+2. Checks if the deployment marker file exists
+3. If found, removes it and executes the restart commands
+4. If not found, does nothing
 
 ## Security Considerations
 
-- The restart script is protected by a token to prevent unauthorized access
-- The token should be kept secure and not shared publicly
-- Consider periodically changing the token for enhanced security
-- The script outputs the commands being executed, which helps with debugging
+- This approach is more secure than PHP execution of shell commands
+- No exposed web endpoints that could be targeted
+- No need for tokens or authentication in URLs
+- Cron job runs with the same user permissions as your application
 
 ## Troubleshooting
 
-If the restart script doesn't work:
+If the application isn't restarting after deployment:
 
-1. Check if PHP is properly configured on your server
-2. Verify that the path to the public_html directory is correct
-3. Make sure the application's PM2 process name matches what's in the script
-4. Check for any permission issues that might prevent command execution
+1. Check if the cron job is properly configured on SiteGround
+2. Verify that the deployment marker file is being uploaded correctly
+3. Check the cron job logs for any errors
+4. Ensure PM2 is installed and configured correctly on the server
+5. Verify that the application's PM2 process name matches what's in the cron job (pricehawk)
