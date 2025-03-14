@@ -44,7 +44,14 @@ PriceHawk is built using a modern web technology stack designed for developer pr
 
 ### DevOps & Infrastructure
 
-- **Vercel**: Deployment platform for Next.js applications
+- **SiteGround**: Production hosting environment for the application with the following limitations:
+  - No specialized Node.js management tools, contrary to some documentation
+  - Limited SSH access capabilities due to firewall restrictions
+  - Requires manual or PHP-based restart triggers after FTP deployment
+  - Available tools include: File Manager, FTP, MySQL/PostgreSQL, Cron Jobs, PHP Manager, SSH Keys
+- **GitHub Actions**: CI/CD pipeline for automated deployment to SiteGround via FTP
+- **PM2**: Process manager for Node.js applications in production
+- **PHP Restart Script**: Secure token-protected PHP script for triggering application restart
 - **GitHub**: Version control and CI/CD integration
 - **ESLint/Prettier**: Code quality and formatting tools
 
@@ -127,6 +134,60 @@ ENABLE_EMAIL_NOTIFICATIONS="true"
    npx prisma migrate dev
    ```
 
+6. **Building for Production**:
+   ```bash
+   npm run build
+   ```
+
+## Next.js App Router Architecture
+
+PriceHawk leverages Next.js App Router architecture with a clear separation between server and client components:
+
+### Server/Client Component Pattern
+
+The application follows a consistent pattern for handling client-side components in Next.js:
+
+1. **Server Components (page.tsx)**:
+   - Do not include client-side hooks (useRouter, useSearchParams, etc.)
+   - Pass data from the server to client components as props
+   - Wrap client components in Suspense boundaries
+   - Handle initial data loading
+   - Provide loading fallbacks
+
+2. **Client Components (-client.tsx)**:
+   - Marked with "use client" directive
+   - Handle interactive user interfaces
+   - Use React hooks like useRouter, useSearchParams, useState, etc.
+   - Receive initial data as props from server components
+   - Implement client-side navigation and state management
+
+This pattern ensures proper hydration and prevents common errors like:
+- "Cannot update a component while rendering a different component" 
+- Hydration mismatches between server and client
+- Navigation hooks causing issues during server rendering
+
+### Suspense Boundary Implementation
+
+```tsx
+// Example server component (page.tsx)
+export default function ProductPage({ searchParams }) {
+  return (
+    <Suspense fallback={<ProductLoadingUI />}>
+      <ProductClient initialSearchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+// Example client component (product-client.tsx)
+"use client";
+
+export default function ProductClient({ initialSearchParams }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  // Rest of client component logic
+}
+```
+
 ## Technical Constraints
 
 ### Performance Constraints
@@ -156,10 +217,16 @@ ENABLE_EMAIL_NOTIFICATIONS="true"
    - Potential for IP blocking
    - Geographic restrictions
 
-3. **Vercel Limitations**:
-   - Serverless function execution time limits
-   - Cold start latency for infrequently used functions
-   - Bandwidth and compute limitations on free/hobby plans
+3. **SiteGround Hosting Limitations**:
+   - No native Node.js management tools unlike some other hosting providers
+   - Restricted SSH access and firewall limitations
+   - Limited direct process control from external sources (GitHub Actions)
+   - Deployment requires a custom PHP-based restart solution
+   - PHP script execution limits for long-running operations
+   - RAM and CPU allocation limits
+   - Process restart policies
+   - Disk space constraints
+   - Concurrent connection limits
 
 ### Security Requirements
 
@@ -231,26 +298,78 @@ ENABLE_EMAIL_NOTIFICATIONS="true"
 
 ## Recent Technical Improvements
 
+### SiteGround Deployment Workflow Fixes (Mar 14, 2025)
+
+1. **PHP-based Restart Solution**:
+   - Created a secure token-protected PHP script (restart-app.php) that executes shell commands
+   - Script executes PM2 restart commands when accessed with the correct token
+   - Updated GitHub Actions workflow to deploy PHP script alongside Next.js application
+   - Configured deployment paths for proper file placement
+
+2. **Identified SiteGround Limitations**:
+   - Discovered SiteGround does not offer Node.js management tools in their control panel
+   - Found SSH access from GitHub Actions is restricted by firewall rules
+   - Documented reliable deployment patterns for SiteGround's environment
+   - Created documentation for the restart solution in docs/remote-restart-solution.md
+
+### Next.js Client-Side Rendering Fixes (Mar 13, 2025)
+
+1. **Server/Client Component Pattern**:
+   - Implemented proper separation between server components and client components
+   - Created pattern with server component (page.tsx) wrapping client component (*-client.tsx)
+   - Added Suspense boundaries around client components that use navigation hooks
+   - Passed searchParams from server to client to avoid hydration mismatches
+   - Added proper loading fallbacks for improved user experience
+
+2. **Build Improvements**:
+   - Fixed critical build errors that were previously blocking deployment
+   - Implemented dynamic rendering directives (e.g., 'force-dynamic') for proper behavior
+   - Resolved TypeScript type declarations for proper component imports
+   - Fixed build-time errors related to client-side navigation hooks
+
+3. **Affected Pages**:
+   - Fixed /settings page with proper client component architecture
+   - Implemented proper Suspense boundary for /profile page
+   - Updated /products page with server/client separation
+   - Enhanced /scraper-test with client-side rendering improvements
+
+### Dropshipper Dashboard Implementation (Mar 12, 2025)
+
+1. **Markup Settings System**:
+   - Added UserProductSettings model for storing user-specific markup preferences
+   - Implemented API endpoints for managing markup settings
+   - Created UI for configuring markup percentages per product
+   - Added automatic profit calculations based on user settings
+
+2. **Profit-Focused UI**:
+   - Enhanced product cards with ROI indicators and profit metrics
+   - Added visual indicators for price trends to aid buying decisions
+   - Implemented dashboard views optimized for dropshippers
+   - Created comprehensive profit analytics and visualizations
+
 ### Authentication System
 
 1. **NextAuth.js Beta Compatibility**:
    - Simplified the auth.ts configuration to resolve TypeScript errors
    - Added @ts-nocheck to bypass TypeScript errors with NextAuth.js beta
    - Implemented a custom credentials provider to handle email/password authentication
-   - Fixed session handling in API routes
 
-2. **Password Reset Functionality**:
+2. **Session Management**:
+   - Fixed session handling in API routes
+   - Resolved "Add Item to Dashboard" functionality by properly handling authentication
+   - Fixed unauthorized errors when accessing subscription status API
+
+3. **Missing Pages**:
+   - Implemented dedicated Products page for managing tracked products
+   - Created Alerts page for managing price alerts
+   - Updated navigation to properly link to these pages
+
+4. **Password Reset Functionality**:
    - Added resetToken and resetTokenExpires fields to the User model
    - Created a reset-password API endpoint for initiating and completing password resets
    - Enhanced the EmailService class with a sendEmail method for custom emails
    - Implemented forgot-password and reset-password pages
    - Added "Forgot password?" link to the sign-in page
-
-3. **UI Integration**:
-   - Fixed "Add Item to Dashboard" functionality
-   - Created dedicated Products and Alerts pages
-   - Connected UI components to real data from the API
-   - Added proper error handling and loading states
 
 ### Database Schema Updates
 
@@ -258,6 +377,12 @@ ENABLE_EMAIL_NOTIFICATIONS="true"
    - Added resetToken (string) field for password reset tokens
    - Added resetTokenExpires (DateTime) field for token expiration
    - Created migration to update the database schema
+
+2. **UserProductSettings Model**:
+   - Added new model for storing user-specific product markup settings
+   - Fields include userId, productId, markupPercentage, markupAmount
+   - Created migration for the new table
+   - Implemented repository pattern for data access
 
 ### Email Service Enhancement
 
@@ -288,7 +413,8 @@ PriceHawk now has a comprehensive production deployment infrastructure that ensu
 
 **Components**:
 - **GitHub Actions CI/CD**: Automated workflow for testing, building, and deploying
-- **SiteGround Hosting**: Production hosting environment with Node.js support
+- **SiteGround Hosting**: Production hosting environment with basic Node.js support
+- **PHP Restart Script**: Token-protected script for triggering application restart
 - **PM2 Process Manager**: For process management, logging, and auto-restart
 - **PostgreSQL Database**: Production database with connection pooling
 - **Health Monitoring**: API endpoints for infrastructure monitoring
@@ -299,7 +425,7 @@ PriceHawk now has a comprehensive production deployment infrastructure that ensu
 3. Database is backed up with version tagging
 4. Application is built with production optimizations
 5. Files are deployed to SiteGround via FTP
-6. PM2 restarts the application
+6. PHP restart script is used to restart the application
 7. Health checks verify successful deployment
 
 ### 2. Production Readiness Features
@@ -380,7 +506,7 @@ name: Deploy PriceHawk
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   workflow_dispatch:
     inputs:
       environment:
@@ -405,9 +531,9 @@ jobs:
       - Run database migrations
       - Build application
       - Run pre-deployment backup
-      - Deploy to SiteGround
-      - Restart application
-      - Verify deployment
+      - Deploy Next.js build to SiteGround via FTP
+      - Deploy restart PHP script to enable application restart
+      - Provide instructions for post-deployment steps
 ```
 
 ### 6. Database Management
@@ -470,6 +596,18 @@ All planned production readiness features have been implemented:
 - Error alerting configured
 - Status monitoring available
 
+✅ **Next.js Client-Side Rendering**:
+- Server/client component pattern implemented
+- Suspense boundaries added for client components
+- Fixed build-blocking errors
+- Improved TypeScript type declarations
+
+✅ **SiteGround Deployment**:
+- FTP deployment via GitHub Actions configured
+- PHP-based restart script implemented
+- Fixed deployment paths for proper file placement
+- Documentation for the SiteGround-specific deployment process
+
 ## Deployment Instructions
 
 The detailed deployment guide is available in `docs/deployment-guide.md` with step-by-step instructions for:
@@ -478,5 +616,6 @@ The detailed deployment guide is available in `docs/deployment-guide.md` with st
 2. Configuring GitHub repository secrets
 3. Running pre-deployment checks
 4. Deploying to pricehawk.app
-5. Verifying successful deployment
-6. Monitoring production performance
+5. Using the PHP restart script to restart the application
+6. Verifying successful deployment
+7. Monitoring production performance

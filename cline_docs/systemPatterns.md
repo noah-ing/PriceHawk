@@ -157,6 +157,7 @@ graph TD
   - Price history (time-series data)
   - Alerts and notification preferences
   - Password reset tokens
+  - User product settings for markup preferences (added for dropshippers)
 
 ### 6. Proxy Management
 
@@ -192,6 +193,43 @@ graph TD
 - Batching strategy to optimize resource usage
 - Failure handling and retry logic
 - Admin interface for monitoring and controlling the scheduled jobs
+
+### 8. Next.js Client-Side Rendering with Suspense Boundaries
+
+**Decision**: Implement proper server/client component architecture with Suspense boundaries for client-side features.
+
+**Rationale**:
+- Critical for handling client-side hooks like useSearchParams() properly
+- Prevents hydration mismatches between server and client
+- Enables proper dynamic content loading patterns
+- Follows Next.js App Router best practices
+
+**Implementation**:
+- Clear separation between server components (page.tsx) and client components (page-client.tsx)
+- Server components handle initial data loading and pass it to client components
+- Suspense boundaries around client components that use navigation hooks
+- Loading fallbacks displayed during hydration and data fetching
+- Dynamic rendering directives (e.g., 'force-dynamic') for proper behavior
+- Server-side searchParams passing to avoid client-side hydration issues
+
+### 9. SiteGround-Specific Deployment Strategy
+
+**Decision**: Implement a PHP-based restart solution to work around SiteGround hosting limitations.
+
+**Rationale**:
+- SiteGround hosting lacks native Node.js management tools
+- SSH access is restricted by firewall rules, preventing direct GitHub Actions access
+- Need for a reliable way to restart the Node.js application after deployment
+- Requirement to handle deployment without direct server access
+
+**Implementation**:
+- Secure token-protected PHP script (restart-app.php) for application restart
+- GitHub Actions workflow to deploy both the application and restart script
+- Two-phase deployment approach:
+  1. FTP deployment of application files and PHP script
+  2. Post-deployment restart triggered via HTTP request to the PHP script
+- Detailed documentation of the restart solution
+- Token-based security to prevent unauthorized restarts
 
 ## Data Flow Patterns
 
@@ -362,6 +400,64 @@ sequenceDiagram
     UI->>User: Redirect to login page
 ```
 
+### Dropshipper Markup Configuration
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant UI
+    participant API
+    participant Database
+    
+    %% Setting Markup Preferences
+    User->>UI: Open product settings
+    UI->>API: Get current settings
+    API->>Database: Fetch user product settings
+    Database->>API: Return settings
+    API->>UI: Display current settings
+    User->>UI: Adjust markup percentage
+    UI->>API: Save new settings
+    API->>Database: Update user product settings
+    API->>UI: Return success
+    UI->>User: Update profit calculations
+    
+    %% Dashboard View with Profit Data
+    User->>UI: View product dashboard
+    UI->>API: Request products with profit data
+    API->>Database: Get products and settings
+    Database->>API: Return product data
+    API->>API: Calculate profit margins
+    API->>UI: Return enhanced product data
+    UI->>User: Display profit-optimized view
+```
+
+### SiteGround Deployment and PHP Restart Process
+
+```mermaid
+sequenceDiagram
+    participant Developer
+    participant GitHub
+    participant GitHubActions
+    participant SiteGround
+    participant RestartPHP
+    participant PM2
+    
+    %% Deployment Process
+    Developer->>GitHub: Push to master branch
+    GitHub->>GitHubActions: Trigger workflow
+    GitHubActions->>GitHubActions: Build application
+    GitHubActions->>SiteGround: FTP deploy Next.js build
+    GitHubActions->>SiteGround: FTP deploy restart-app.php
+    GitHubActions->>Developer: Display restart URL
+    
+    %% Restart Process
+    Developer->>RestartPHP: Visit restart URL with token
+    RestartPHP->>RestartPHP: Validate token
+    RestartPHP->>PM2: Execute restart commands
+    PM2->>RestartPHP: Return restart result
+    RestartPHP->>Developer: Display execution result
+```
+
 ## React Component Patterns
 
 ### React Hooks Best Practices
@@ -409,6 +505,30 @@ To ensure consistent behavior and prevent "Cannot update a component while rende
    - Use consistent loading indicators across the application
    - Ensure loading states don't trigger unnecessary renders
 
+5. **Suspense Boundary Pattern**
+   ```jsx
+   // ✅ CORRECT: Server component with Suspense boundary
+   // page.tsx (Server Component)
+   export default function Page({ searchParams }) {
+     return (
+       <Suspense fallback={<LoadingComponent />}>
+         <ClientComponent initialSearchParams={searchParams} />
+       </Suspense>
+     );
+   }
+   
+   // page-client.tsx (Client Component)
+   "use client";
+   
+   export default function ClientComponent({ initialSearchParams }) {
+     // Safe to use client-side hooks here
+     const searchParams = useSearchParams();
+     const router = useRouter();
+     
+     // Component logic...
+   }
+   ```
+
 ## Error Handling Patterns
 
 1. **Authentication Failures**
@@ -443,7 +563,75 @@ To ensure consistent behavior and prevent "Cannot update a component while rende
    - Fallback to cached data when appropriate
    - Monitoring and alerting for persistent issues
 
+5. **Deployment Failures**
+   - Clear error reporting during deployment
+   - Verification steps to prevent partial deployments
+   - Recovery options after failed deployment
+   - Pre-deployment backups for rollback capability
+   - Post-deployment health checks
+
 ## Recent Implementation Improvements
+
+### SiteGround Deployment Solution (Mar 14, 2025)
+
+1. **PHP-based Restart Solution**
+   - Created a secure token-protected PHP script for application restart
+   - Token authentication prevents unauthorized restarts
+   - Script executes server-side commands to restart PM2 process
+   - Modified GitHub Actions workflow to deploy the PHP script to the correct location
+
+2. **Deployment Process Enhancement**
+   - Updated GitHub Actions workflow for two-phase deployment:
+     1. FTP deployment of application files to SiteGround
+     2. FTP deployment of restart script to proper location
+   - Fixed deployment path configuration for proper file placement
+   - Detailed documentation for the restart solution in docs/remote-restart-solution.md
+
+3. **SiteGround Hosting Adaptation**
+   - Identified and documented SiteGround hosting limitations:
+     - No specialized Node.js management tools in their control panel
+     - Limited SSH access capabilities due to firewall restrictions
+     - Need for manual restart triggers after FTP deployment
+   - Implemented workarounds for these limitations with the PHP restart solution
+   - Created reliable patterns for production deployment in this environment
+
+### Next.js Client-Side Rendering Fixes (Mar 13, 2025)
+
+We have successfully addressed Client-Side Rendering issues in the Next.js application:
+
+1. **Server/Client Component Pattern**
+   - Implemented proper separation between server components and client components
+   - Created pattern with server component (page.tsx) wrapping client component (*-client.tsx)
+   - Added Suspense boundaries around client components that use navigation hooks
+   - Passed searchParams from server to client to avoid hydration mismatches
+   - Added proper loading fallbacks for improved user experience
+
+2. **Affected Pages**
+   - Fixed /settings page with proper client component architecture
+   - Implemented proper Suspense boundary for /profile page
+   - Updated /products page with server/client separation
+   - Enhanced /scraper-test with client-side rendering improvements
+   - Structured all remaining pages with consistent patterns
+
+3. **Build Improvements**
+   - Fixed critical build errors that were previously blocking deployment
+   - Improved TypeScript type declarations for cleaner development experience
+   - Optimized bundle sizes by properly splitting server and client code
+   - Enhanced overall application stability and reliability
+
+### Dropshipper Dashboard Implementation (Mar 12, 2025)
+
+1. **Markup Settings System**
+   - Added UserProductSettings model for storing user-specific markup preferences
+   - Implemented API endpoints for managing markup settings
+   - Created UI for configuring markup percentages per product
+   - Added automatic profit calculations based on user settings
+
+2. **Profit-Focused UI**
+   - Enhanced product cards with ROI indicators and profit metrics
+   - Added visual indicators for price trends to aid buying decisions
+   - Implemented dashboard views optimized for dropshippers
+   - Created comprehensive profit analytics and visualizations
 
 ### Authentication System
 
@@ -552,6 +740,7 @@ graph TD
     F --> F2[Pre-Deployment Checks]
     F --> F3[Database Backups]
     F --> F4[Automated Deployment]
+    F --> F5[PHP Restart Script]
 ```
 
 ### Rate Limiting Architecture
@@ -630,22 +819,36 @@ graph TD
     C -->|Fail| E[Stop Deployment]
     
     D --> F[Build Application]
-    F --> G[Deploy to SiteGround]
-    G --> H[Restart Application]
-    H --> I[Verify Deployment]
+    F --> G1[FTP Deploy Next.js App]
+    F --> G2[FTP Deploy PHP Restart Script]
+    G1 --> H[Display Restart URL]
+    G2 --> H
     
-    I -->|Success| J[Deployment Complete]
-    I -->|Failure| K[Rollback]
+    H --> I[Manual Restart Access]
+    I --> J[App Restart via PHP]
+    J --> K[Verify Deployment]
+    
+    K -->|Success| L[Deployment Complete]
+    K -->|Failure| M[Rollback]
 ```
 
 1. **Automatic Deployment**
    - Triggered by pushes to main branch
    - Pre-deployment verification of requirements
    - Automated database backup before deployment
-   - Build and deploy to SiteGround
+   - Build and deploy to SiteGround via FTP
+   - Deploy PHP restart script to server
+   - Post-deployment restart via PHP script
    - Post-deployment verification
 
-2. **Rollback Capability**
+2. **SiteGround-Specific Restart Solution**
+   - Token-protected PHP script for secure restart
+   - GitHub Actions workflow displays restart URL
+   - Manual browser access to restart script
+   - Script executes PM2 restart commands
+   - Detailed output for verification
+
+3. **Rollback Capability**
    - Pre-deployment database backups
    - Version tracking for backups
    - Clear rollback procedures
@@ -704,6 +907,12 @@ The security architecture has been hardened for production:
    - Detailed internal logging without information leakage
    - Standardized error response format
    - Error tracking with request IDs
+
+4. **Deployment Security**
+   - Token-protected PHP restart script
+   - Secure GitHub secrets management
+   - Clear authentication for system-level operations
+   - Restricted access to sensitive operations
 
 ## Scalability Implementation
 
