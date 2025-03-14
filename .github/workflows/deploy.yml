@@ -57,7 +57,7 @@ jobs:
       - name: Build application
         run: npm run build
       
-      - name: Deploy to SiteGround via FTP
+      - name: Deploy Next.js build to SiteGround via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
           server: ${{ secrets.SITEGROUND_FTP_SERVER }}
@@ -66,29 +66,17 @@ jobs:
           local-dir: ./.next/
           server-dir: /public_html/
       
-      - name: Copy server files
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
-        with:
-          server: ${{ secrets.SITEGROUND_FTP_SERVER }}
-          username: ${{ secrets.SITEGROUND_FTP_USERNAME }}
-          password: ${{ secrets.SITEGROUND_FTP_PASSWORD }}
-          local-dir: ./
-          server-dir: ./
-          exclude: |
-            **/*
-            !server.js
-            !package.json
-            !package-lock.json
-            !.env
-            !lib/websockets.js
-      
-      - name: Install dependencies and restart on server
+      - name: Update and restart server via SSH
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SITEGROUND_SSH_HOST }}
           username: ${{ secrets.SITEGROUND_SSH_USERNAME }}
           key: ${{ secrets.SITEGROUND_SSH_PRIVATE_KEY }}
           script: |
+            # Create backup directories if they don't exist
+            mkdir -p ~/backups
+            
+            # Restart the application
             cd ~/public_html
             npm install --production
             pm2 restart pricehawk || pm2 start npm --name pricehawk -- start
