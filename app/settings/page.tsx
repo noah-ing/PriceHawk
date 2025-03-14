@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+// Skip static generation - force dynamic rendering
+export const dynamic = 'force-dynamic';
+
+import { useState, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import { NavBar } from "@/components/nav-bar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +17,8 @@ import { Separator } from "@/components/ui/separator";
 import { Bell, User, Moon, Sun, Globe, Shield, LogOut } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-export default function SettingsPage() {
+// The actual Settings component
+function SettingsContent() {
   const { data: session } = useSession();
   const [activeTab, setActiveTab] = useState("account");
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -460,5 +464,14 @@ export default function SettingsPage() {
         </main>
       </div>
     </div>
+  );
+}
+
+// Export a Suspense-wrapped component to handle any useSearchParams() calls
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <SettingsContent />
+    </Suspense>
   );
 }
