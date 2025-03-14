@@ -9,6 +9,7 @@
 import NextAuth from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db/prisma";
+import { isBuildEnvironment, runtimeOnly } from "@/lib/utils/env-utils";
 // Google OAuth provider removed for current deployment
 import CredentialsProvider from "next-auth/providers/credentials";
 import crypto from 'crypto';
@@ -32,18 +33,24 @@ async function verifyDatabaseConnection() {
   }
 }
 
-// Initialize database connection verification and ensure it completes
-// This is important to prevent race conditions during NextAuth initialization
+// Initialize database connection verification only at runtime, not during build
 let dbConnectionVerified = false;
-(async () => {
-  try {
-    dbConnectionVerified = await verifyDatabaseConnection();
-    console.log(`[Auth] Database connection verified: ${dbConnectionVerified}`);
-  } catch (error) {
-    console.error('[Auth] Database verification failed:', error);
-    dbConnectionVerified = false;
-  }
-})();
+
+// Skip database connection attempts during build time using the runtime guard pattern
+if (!isBuildEnvironment()) {
+  // Only run in runtime environments, not during builds
+  runtimeOnly(async () => {
+    try {
+      dbConnectionVerified = await verifyDatabaseConnection();
+      console.log(`[Auth] Database connection verified: ${dbConnectionVerified}`);
+    } catch (error) {
+      console.error('[Auth] Database verification failed:', error);
+      dbConnectionVerified = false;
+    }
+  });
+} else {
+  console.log('[Auth] Skipping database verification during build phase');
+}
 
 // Configure NextAuth.js
 export const { handlers, auth, signIn, signOut } = NextAuth({

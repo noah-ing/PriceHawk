@@ -7,12 +7,12 @@
 
 "use client";
 
-// Skip static generation - force dynamic rendering
-export const dynamic = 'force-dynamic';
+// Skip static generation - force dynamic rendering using string literal
+export const dynamic = "force-dynamic";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,7 +50,11 @@ type CreateAlertData = {
   targetPrice: number;
 };
 
-export default function AlertsPage() {
+// The actual Alerts component
+function AlertsContent() {
+  // Even though we don't directly use searchParams in this component,
+  // explicitly declare it to ensure Next.js properly detects it's within Suspense
+  const searchParams = useSearchParams();
   const { data: session, status } = useSession();
   const router = useRouter();
   const [alerts, setAlerts] = useState<Alert[]>([]);

@@ -5,6 +5,15 @@ PriceHawk is production ready with a newly added dropshipper-focused dashboard t
 
 ## Recent Changes
 
+### Next.js Client-Side Rendering Fixes (Latest Work - Mar 13, 2025)
+- ✅ Fixed useSearchParams() hook needs to be wrapped in Suspense boundary errors:
+  - Modified auth verification pages to use Suspense boundaries
+  - Updated profile page component with proper Suspense wrapper
+  - Fixed not-found (404) page to properly handle client-side rendering
+  - Added Suspense wrapper to subscription page for proper handling of useSearchParams()
+  - Restructured components with proper content/wrapper pattern for better CSR handling
+
+
 ### Dropshipper Dashboard Implementation (Latest Work - Mar 12, 2025)
 - ✅ Added comprehensive dropshipper feature set:
   - Created UserProductSettings model in database for storing markup preferences
