@@ -71,7 +71,7 @@ jobs:
         with:
           host: ${{ secrets.SITEGROUND_SSH_HOST }}
           username: ${{ secrets.SITEGROUND_SSH_USERNAME }}
-          key: ${{ secrets.SITEGROUND_SSH_PRIVATE_KEY }}
+          password: ${{ secrets.SITEGROUND_SSH_PASSWORD }}
           script: |
             # Create backup directories if they don't exist
             mkdir -p ~/backups
