@@ -1,5 +1,8 @@
 "use client";
 
+// Skip static generation - force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 import { redirect } from "next/navigation";
 import { useState, useEffect } from "react";
 import Dashboard from "../../dashboard";
