@@ -51,7 +51,7 @@ type CreateAlertData = {
 };
 
 // The actual Alerts component
-function AlertsContent() {
+export default function AlertsContent() {
   // Even though we don't directly use searchParams in this component,
   // explicitly declare it to ensure Next.js properly detects it's within Suspense
   const searchParams = useSearchParams();
