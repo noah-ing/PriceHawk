@@ -67,7 +67,7 @@ jobs:
           local-dir: ./.next/
           server-dir: /public_html/
       
-      # Deploy restart PHP script
+      # Deploy restart PHP script at the exact correct path
       - name: Deploy restart PHP script to SiteGround via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
@@ -75,7 +75,7 @@ jobs:
           username: ${{ secrets.SITEGROUND_FTP_USERNAME }}
           password: ${{ secrets.SITEGROUND_FTP_PASSWORD }}
           local-dir: ./public/
-          server-dir: /public_html/
+          server-dir: /
       
       - name: Deployment completed
         run: |
