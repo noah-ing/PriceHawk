@@ -7,6 +7,9 @@
 
 "use client";
 
+// Skip static generation - force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";

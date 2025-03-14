@@ -1,5 +1,8 @@
 "use client";
 
+// Skip static generation - force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
