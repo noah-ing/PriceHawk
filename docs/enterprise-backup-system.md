@@ -1,152 +1,135 @@
 # Enterprise-Level Pre-Deployment Backup System
 
-This document describes the enterprise-level backup system implemented for PriceHawk's production environment. This system ensures reliable database backups are created before each deployment, providing a safety net for rollbacks if needed.
+This document describes the enterprise-level pre-deployment backup approach for PriceHawk's production environment. This system ensures reliable database backups are created before each deployment, providing a safety net for rollbacks if needed.
 
 ## Overview
 
-The backup system addresses a critical issue with the previous approach: attempting to create database backups from GitHub Actions runners, which couldn't resolve the SiteGround database hostname (`pg.siteground.biz`).
+After encountering connectivity challenges between GitHub Actions and the SiteGround server, we've implemented a local pre-deployment backup approach. This solution addresses several limitations:
 
-The new solution takes an enterprise approach by:
+1. GitHub Actions runners are unable to establish SSH connections to the SiteGround server due to network constraints
+2. Interactive SSH authentication (requiring passphrases) is not supported in GitHub Actions
+3. Direct database connections from GitHub Actions are blocked by SiteGround's security measures
+
+The revised solution takes an enterprise approach by:
 
 1. Executing backups directly on the SiteGround server where database access is guaranteed
-2. Using SSH for secure remote execution
-3. Splitting the deployment process into separate backup and deploy stages
-4. Implementing proper backup verification and detailed logging
-5. Maintaining a versioned backup history with automatic rotation
+2. Using a local script to guide developers through the manual backup process
+3. Ensuring backups are created before code is pushed to GitHub
+4. Maintaining a versioned backup history with proper naming conventions
+5. Following best practices for database backup management
 
 ## Components
 
 ### 1. `remote-backup.sh`
 
-A shell script designed to run directly on the SiteGround server. It:
+A shell script template that can be executed directly on the SiteGround server. It:
 
-- Creates the backup directories if they don't exist
-- Executes `pg_dump` against the local database connection
-- Verifies the backup was created successfully
-- Implements backup rotation to maintain a reasonable number of backups
-- Provides detailed logging
-- Creates status files to indicate success/failure
+- Creates backups using the local database connection
+- Uses proper compression for efficient storage
+- Creates standardized backup filenames with timestamps and version tags
 
-```bash
-# Key configuration settings
-BACKUP_DIR="$HOME/backups/postgres/pre-deployment"
-MAX_BACKUPS=5
-```
+### 2. `local-pre-deploy.js`
 
-### 2. `execute-remote-backup.js`
+A local Node.js script that guides developers through the pre-deployment process:
 
-A Node.js script that runs in the GitHub Actions workflow to:
-
-- Upload the `remote-backup.sh` script to the SiteGround server
-- Make the script executable
-- Execute the backup script on the server with necessary environment variables
-- Capture and display the output from the remote execution
-- Verify the success of the backup operation
-- Return appropriate exit codes to signal success/failure to the GitHub workflow
+- Checks for uncommitted Git changes
+- Provides the SSH command template for creating a database backup
+- Confirms the backup was successfully created
+- Handles the commit and push to initiate deployment
+- Provides clear instructions and verification steps
 
 ```javascript
-// Key configuration settings
-const remoteScriptPath = "~/remote-backup.sh";
+// Key configuration
+const backupCommand = 'ssh -o BatchMode=no -o StrictHostKeyChecking=accept-new ${SSH_USER}@${SSH_HOST} "pg_dump -h localhost -U ${DB_USER} -d ${DB_NAME} -F c -f ~/backups/pre-deploy-$(date +%Y%m%d-%H%M%S).dump"';
 ```
 
 ### 3. GitHub Workflow Integration
 
 The GitHub Actions workflow file (`.github/workflows/deploy.yml`) has been updated to:
 
-- Split the deployment into separate `backup` and `deploy` jobs
-- Add the backup job as a prerequisite for the deployment job
-- Configure SSH access with the private key from GitHub Secrets
-- Execute the remote backup before proceeding with deployment
-- Use key-based authentication instead of password authentication for SSH operations
+- Focus solely on the deployment process
+- Rely on developers performing the backup manually before pushing
+- Use SSH for server operations like restarting the application
+- Verify the deployment success with health checks
 
 ## Workflow
 
-1. When a deployment is triggered (via push to master or manual workflow dispatch):
-   - The `backup` job checks out the code and sets up the environment
-   - SSH keys are configured for secure access to the SiteGround server
-   - The `execute-remote-backup.js` script uploads and executes the backup script
-   - The backup script creates a versioned backup directly on the server
-   - If successful, the `deploy` job proceeds; if not, the workflow fails
+1. When a developer needs to deploy changes to production:
+   - They run `node scripts/local-pre-deploy.js`
+   - The script guides them through creating a database backup on the server
+   - After confirming the backup's success, the script handles the git commit and push
+   - The GitHub workflow deploys the application
 
-2. The server creates backups in `~/backups/postgres/pre-deployment/` with clear naming:
+2. The pre-deployment backups are stored on the server in a standard location:
    ```
-   pricehawk-pre-deploy-v1.0.0-20250314-123456.dump
+   ~/backups/pre-deploy-20250314-123456.dump
    ```
 
-3. Backups are automatically rotated, keeping only the most recent 5 (configurable)
+3. Developers can manage backup retention manually to balance storage requirements
 
-## Advantages Over Previous Solution
+## Advantages of This Approach
 
 1. **Reliability**: Backups are created where database access is guaranteed
-2. **Security**: Uses SSH key authentication rather than passwords
-3. **Performance**: Faster execution since the backup is created locally on the server
-4. **Maintainability**: Detailed logs and status indicators
-5. **Safety**: Clear separation between backup and deployment phases
-6. **Flexibility**: Version tagging for important releases
-7. **Durability**: Automatic rotation of backups to prevent disk space issues
+2. **Simplicity**: Avoids complex SSH authentication in CI/CD pipelines
+3. **Security**: Uses interactive SSH with proper authentication
+4. **Control**: Developers have direct oversight of the backup process
+5. **Verification**: Developers confirm backup success before deployment
+6. **Clarity**: Clear instructions guide developers through the process
+7. **Transparency**: Backup steps are explicitly documented and visible
 
-## Troubleshooting
+## Manual Backup Instructions
 
-### Common Issues and Solutions
+### Creating a Backup Before Deployment
 
-1. **SSH Connection Failures**:
-   - Verify SSH key is properly configured in GitHub Secrets
-   - Check SiteGround SSH host and username are correct
-   - Ensure firewall isn't blocking SSH connections
+1. Run the local pre-deployment script:
+   ```bash
+   node scripts/local-pre-deploy.js
+   ```
 
-2. **Database Access Issues**:
-   - Verify DB_USER and DB_NAME environment variables pass correctly
-   - Check database user has proper permissions for backup
-   - Review logs at `~/backups/postgres/pre-deployment/backup-*.log`
+2. When prompted, execute the SSH command in a separate terminal:
+   ```bash
+   ssh user@siteground.host "pg_dump -h localhost -U username -d database -F c -f ~/backups/pre-deploy-$(date +%Y%m%d-%H%M%S).dump"
+   ```
 
-3. **Script Upload Failures**:
-   - Check SSH user has write permissions to home directory
-   - Verify script path and permissions
-   - Check for disk space issues on the server
+3. Confirm the backup was created successfully when prompted by the script
+4. Enter your commit message
+5. Confirm deployment to initiate the git push
 
-### Viewing Backup History
+### Viewing Existing Backups
 
 Connect to the SiteGround server and run:
 
 ```bash
-ls -la ~/backups/postgres/pre-deployment/
+ls -la ~/backups/
 ```
 
-### Manual Backup Execution
-
-To manually execute a backup:
-
-```bash
-ssh user@host "DB_USER='username' DB_NAME='database' ~/remote-backup.sh manual-backup"
-```
-
-### Restoring from Backup
+### Restoring from a Backup
 
 To restore from a backup:
 
 ```bash
-pg_restore -h localhost -U username -d database -c -C ~/backups/postgres/pre-deployment/backup-file.dump
+pg_restore -h localhost -U username -d database -c -C ~/backups/pre-deploy-YYYYMMDD-HHMMSS.dump
 ```
 
 ## Security Considerations
 
-1. **SSH Keys**: The solution uses SSH key authentication, which is more secure than password authentication
-2. **Limited Permissions**: The script requires minimal permissions on the server
-3. **No Credential Storage**: Database credentials aren't stored in the scripts, only passed as environment variables
-4. **Audit Trail**: Each backup creates detailed logs, providing an audit trail of backup operations
+1. **Interactive Authentication**: The solution uses standard SSH authentication with interactive password/key confirmation
+2. **Limited Permissions**: The backup requires minimal database permissions
+3. **No Credential Storage**: Database credentials aren't stored in the scripts or repositories
+4. **Developer Verification**: Human verification ensures backups are properly created
 
 ## Maintenance Tasks
 
-1. **Review Backups Periodically**: Check the backups directory occasionally to ensure rotation is working
-2. **Update MAX_BACKUPS**: Adjust the number of backups kept based on available disk space
-3. **Verify Backup Files**: Occasionally verify backups can be restored correctly
+1. **Backup Rotation**: Periodically clean up old backups to manage disk space
+2. **Backup Verification**: Occasionally verify backups can be restored correctly
+3. **Documentation Updates**: Keep backup instructions updated as server configurations change
 
 ## Future Enhancements
 
 Potential future improvements include:
 
-1. Remote storage of backups (e.g., S3 or cloud storage)
-2. Automated backup verification through test restoration
-3. Notification system for backup failures
-4. Compression and encryption of backup files
-5. Integration with monitoring systems for better observability
+1. Remote storage synchronization to copy backups to cloud storage
+2. Automated backup verification scripts
+3. Better backup compression and management
+4. Integration with monitoring systems for backup health checks
+5. Resolving the GitHub Actions SSH connectivity issues for future automation
