@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -11,7 +11,8 @@ import { NavBar } from '@/components/nav-bar';
 import { Badge } from '@/components/ui/badge';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 
-export default function SubscriptionPage() {
+// The actual Subscription component
+function SubscriptionContent() {
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [managingSubscription, setManagingSubscription] = useState(false);
@@ -179,19 +180,19 @@ export default function SubscriptionPage() {
   if (loading) {
     return (
       <div className="flex min-h-screen w-full bg-muted/10">
-        <NavBar />
-        <div className="flex flex-1 flex-col">
-          <main className="flex-1 p-6">
-            <div className="flex flex-col gap-6">
-              <h1 className="text-3xl font-bold tracking-tight">Subscription</h1>
-              <div className="space-y-4">
-                <Skeleton className="h-8 w-1/3" />
-                <Skeleton className="h-32 w-full" />
-                <Skeleton className="h-32 w-full" />
+          <NavBar />
+          <div className="flex flex-1 flex-col">
+            <main className="flex-1 p-6">
+              <div className="flex flex-col gap-6">
+                <h1 className="text-3xl font-bold tracking-tight">Subscription</h1>
+                <div className="space-y-4">
+                  <Skeleton className="h-8 w-1/3" />
+                  <Skeleton className="h-32 w-full" />
+                  <Skeleton className="h-32 w-full" />
+                </div>
               </div>
-            </div>
-          </main>
-        </div>
+            </main>
+          </div>
       </div>
     );
   }
@@ -425,5 +426,14 @@ export default function SubscriptionPage() {
         </main>
       </div>
     </div>
+  );
+}
+
+// Export a Suspense-wrapped component to handle any useSearchParams() calls
+export default function SubscriptionPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <SubscriptionContent />
+    </Suspense>
   );
 }
