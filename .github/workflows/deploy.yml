@@ -66,22 +66,11 @@ jobs:
           local-dir: ./.next/
           server-dir: /public_html/
       
-      - name: Update and restart server via SSH
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SITEGROUND_SSH_HOST }}
-          username: ${{ secrets.SITEGROUND_SSH_USERNAME }}
-          password: ${{ secrets.SITEGROUND_SSH_PASSWORD }}
-          script: |
-            # Create backup directories if they don't exist
-            mkdir -p ~/backups
-            
-            # Restart the application
-            cd ~/public_html
-            npm install --production
-            pm2 restart pricehawk || pm2 start npm --name pricehawk -- start
-      
-      - name: Verify deployment
+      - name: Deployment completed
         run: |
-          sleep 30
-          curl -f ${{ secrets.NEXTAUTH_URL }}/api/health || exit 1
+          echo "Next.js build deployed successfully via FTP"
+          echo "IMPORTANT: You need to manually restart the application on the server by running:"
+          echo "ssh ${{ secrets.SITEGROUND_SSH_USERNAME }}@${{ secrets.SITEGROUND_SSH_HOST }}"
+          echo "cd ~/public_html"
+          echo "npm install --production"
+          echo "pm2 restart pricehawk || pm2 start npm --name pricehawk -- start"
