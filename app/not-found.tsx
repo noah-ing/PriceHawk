@@ -5,8 +5,10 @@ export const dynamic = 'force-dynamic';
 
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { Suspense } from "react";
 
-export default function NotFound() {
+// The actual NotFound component
+function NotFoundContent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/10 p-4">
       <div className="text-center max-w-md">
@@ -22,5 +24,14 @@ export default function NotFound() {
         </Button>
       </div>
     </div>
+  );
+}
+
+// Export a Suspense-wrapped component to handle any useSearchParams() calls
+export default function NotFound() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <NotFoundContent />
+    </Suspense>
   );
 }
