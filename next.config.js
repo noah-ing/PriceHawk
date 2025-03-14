@@ -38,11 +38,7 @@ const nextConfig = {
   experimental: {
     webpackBuildWorker: true,
     parallelServerBuildTraces: true,
-    parallelServerCompiles: true,
-    // Explicitly prevent static generation of pages with client hooks to avoid useSearchParams error
-    // This applies to the entire application
-    // Other options for this might be 'force-static' or 'default'
-    staticPageGenerationTimeout: 0 // Prevents static generation timeout errors
+    parallelServerCompiles: true
   }
 };
 
