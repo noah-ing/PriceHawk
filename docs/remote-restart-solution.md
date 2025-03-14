@@ -16,7 +16,7 @@ Since direct SSH access to the SiteGround server is not possible from GitHub Act
 After each deployment, you need to visit the following URL to restart the application:
 
 ```
-https://your-domain.com/restart-app.php?token=PrH_7f2c91d83b4e5a6f
+https://pricehawk.app/restart-app.php?token=PrH_7f2c91d83b4e5a6f
 ```
 
 This will:

@@ -75,13 +75,13 @@ jobs:
           username: ${{ secrets.SITEGROUND_FTP_USERNAME }}
           password: ${{ secrets.SITEGROUND_FTP_PASSWORD }}
           local-dir: ./public/
-          server-dir: /public_html/
+          server-dir: /
       
       - name: Deployment completed
         run: |
           echo "Next.js build deployed successfully via FTP"
           echo "IMPORTANT: To restart the application, visit the following URL in your browser:"
-          echo "${{ secrets.NEXTAUTH_URL }}/restart-app.php?token=PrH_7f2c91d83b4e5a6f"
+          echo "https://pricehawk.app/restart-app.php?token=PrH_7f2c91d83b4e5a6f"
           echo ""
           echo "This will execute these commands on the server:"
           echo "- cd ~/public_html"
