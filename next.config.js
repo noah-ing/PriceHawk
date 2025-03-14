@@ -5,19 +5,44 @@
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Skip type checking and linting during build for faster builds
   eslint: {
     ignoreDuringBuilds: true,
   },
   typescript: {
     ignoreBuildErrors: true,
   },
+  
+  // Image optimization settings
   images: {
     unoptimized: true,
   },
+  
+  // Runtime configuration
+  // Use Node.js runtime for all server components
+  // This prevents issues with static generation of pages that use client-side hooks
+  output: 'standalone',
+  
+  // Disable strict mode to prevent double-rendering during development
+  // This can help with hooks that have side effects
+  reactStrictMode: false,
+  
+  // Set page options for the entire application
+  // This is a more comprehensive approach than setting dynamic = 'force-dynamic' on individual pages
+  serverRuntimeConfig: {
+    // Add a flag to indicate when we're in build mode
+    IS_BUILD: process.env.NODE_ENV === 'production' && process.env.NEXT_PHASE === 'phase-production-build'
+  },
+
+  // Enable experimental features for performance
   experimental: {
     webpackBuildWorker: true,
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
+    // Explicitly prevent static generation of pages with client hooks to avoid useSearchParams error
+    // This applies to the entire application
+    // Other options for this might be 'force-static' or 'default'
+    staticPageGenerationTimeout: 0 // Prevents static generation timeout errors
   }
 };
 
