@@ -3,7 +3,7 @@
 // Skip static generation - force dynamic rendering
 export const dynamic = 'force-dynamic';
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Mail, AlertTriangle, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
-export default function VerificationRequiredPage() {
+// The actual VerificationRequired component
+function VerificationRequiredContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isResending, setIsResending] = useState(false);
@@ -114,5 +115,14 @@ export default function VerificationRequiredPage() {
         </CardFooter>
       </Card>
     </div>
+  );
+}
+
+// Export a Suspense-wrapped component to handle any useSearchParams() calls
+export default function VerificationRequiredPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <VerificationRequiredContent />
+    </Suspense>
   );
 }

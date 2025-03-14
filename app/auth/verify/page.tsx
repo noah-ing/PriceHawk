@@ -3,7 +3,7 @@
 // Skip static generation - force dynamic rendering
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,8 @@ enum VerificationStatus {
   ERROR = "error",
 }
 
-export default function VerifyEmailPage() {
+// The actual VerifyEmail component
+function VerifyEmailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<VerificationStatus>(VerificationStatus.LOADING);
@@ -130,5 +131,14 @@ export default function VerifyEmailPage() {
         </CardFooter>
       </Card>
     </div>
+  );
+}
+
+// Export a Suspense-wrapped component to handle any useSearchParams() calls
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <VerifyEmailContent />
+    </Suspense>
   );
 }
