@@ -1,5 +1,8 @@
 "use client"
 
+// Skip static generation - force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { useSession } from 'next-auth/react'
