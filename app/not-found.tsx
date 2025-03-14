@@ -6,9 +6,13 @@ export const dynamic = 'force-dynamic';
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 
 // The actual NotFound component
 function NotFoundContent() {
+  // Even though we don't use searchParams, explicitly declare it 
+  // to ensure Next.js properly detects it's within Suspense
+  const searchParams = useSearchParams();
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/10 p-4">
       <div className="text-center max-w-md">

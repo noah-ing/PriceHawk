@@ -3,8 +3,9 @@
 // Skip static generation - force dynamic rendering
 export const dynamic = 'force-dynamic';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
+import { useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -31,7 +32,11 @@ const formSchema = z.object({
 // Type for the form values
 type FormValues = z.infer<typeof formSchema>;
 
-export default function ProfilePage() {
+// The actual Profile component
+function ProfileContent() {
+  // Even though we don't use searchParams, explicitly declare it 
+  // to ensure Next.js properly detects it's within Suspense
+  const searchParams = useSearchParams();
   const { data: session, update } = useSession();
   const [isLoading, setIsLoading] = useState(false);
   const [isResendingVerification, setIsResendingVerification] = useState(false);
@@ -335,5 +340,14 @@ export default function ProfilePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Export a Suspense-wrapped component to handle any useSearchParams() calls
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ProfileContent />
+    </Suspense>
   );
 }
