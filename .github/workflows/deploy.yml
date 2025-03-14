@@ -4,9 +4,57 @@ on:
   push:
     branches: [master]
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag for deployment (e.g. v1.0.0)'
+        required: false
+        default: 'v1.0.0'
 
 jobs:
+  backup:
+    name: Pre-Deployment Backup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci --force
+      
+      - name: Create .env file with DB credentials
+        run: |
+          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
+          echo "SITEGROUND_SSH_HOST=${{ secrets.SITEGROUND_SSH_HOST }}" >> .env
+          echo "SITEGROUND_SSH_USERNAME=${{ secrets.SITEGROUND_SSH_USERNAME }}" >> .env
+      
+      - name: Set up SSH key
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.SITEGROUND_SSH_PRIVATE_KEY }}
+      
+      - name: Add server to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.SITEGROUND_SSH_HOST }} >> ~/.ssh/known_hosts
+      
+      - name: Execute remote backup
+        id: backup
+        run: |
+          VERSION="${{ github.event.inputs.version || 'v1.0.0' }}"
+          node scripts/execute-remote-backup.js "$VERSION"
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SITEGROUND_SSH_HOST: ${{ secrets.SITEGROUND_SSH_HOST }}
+          SITEGROUND_SSH_USERNAME: ${{ secrets.SITEGROUND_SSH_USERNAME }}
+
   deploy:
+    name: Deploy Application
+    needs: backup
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -51,9 +99,6 @@ jobs:
       - name: Build application
         run: npm run build
       
-      - name: Create pre-deployment backup
-        run: node scripts/pre-deployment-backup.js v1.0.0
-      
       - name: Deploy to SiteGround via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
@@ -84,7 +129,7 @@ jobs:
         with:
           host: ${{ secrets.SITEGROUND_SSH_HOST }}
           username: ${{ secrets.SITEGROUND_SSH_USERNAME }}
-          password: ${{ secrets.SITEGROUND_SSH_PASSWORD }}
+          key: ${{ secrets.SITEGROUND_SSH_PRIVATE_KEY }}
           script: |
             cd ~/public_html
             npm install --production
