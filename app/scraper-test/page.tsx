@@ -1,33 +1,30 @@
-"use client";
-
-import { redirect } from 'next/navigation';
-import { Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
-
-/**
- * Redirect from Scraper Test Page to Advanced Search
- * 
- * This provides backward compatibility by redirecting users
- * from the old scraper-test URL to the new advanced-search page.
- */
-
-// Skip static generation - force dynamic rendering
+// Server component that doesn't use client hooks
 export const dynamic = 'force-dynamic';
 
-// The actual redirect component
-function ScraperTestContent() {
-  // Even though we don't use searchParams, explicitly declare it 
-  // to ensure Next.js properly detects it's within Suspense
-  const searchParams = useSearchParams();
-  redirect('/advanced-search');
-  return null; // This will never be rendered due to the redirect
+import { Suspense } from "react";
+import ScraperTestClient from "./scraper-test-client";
+
+// Simple loading fallback
+function LoadingFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
+      <div className="text-center">
+        <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-gray-500 border-t-transparent"></div>
+        <p className="mt-2">Loading scraper test...</p>
+      </div>
+    </div>
+  );
 }
 
-// Export a Suspense-wrapped component to handle any useSearchParams() calls
-export default function ScraperTestPage() {
+// Server component for scraper test page
+export default function ScraperTestPage({
+  searchParams,
+}: {
+  searchParams: { [key: string]: string | string[] | undefined };
+}) {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <ScraperTestContent />
+    <Suspense fallback={<LoadingFallback />}>
+      <ScraperTestClient initialSearchParams={searchParams} />
     </Suspense>
   );
 }
